@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/.build"
 APP_NAME="HerdrBar"
 BUNDLE_ID="dev.herdr.topbar"
-VERSION="0.1.0"
+VERSION="0.2.0"
 DEST="${HERDR_TOPBAR_DEST:-$HOME/Applications/$APP_NAME.app}"
 
 # This path is later handed to `rm -rf`, and it can be overridden from the

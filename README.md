@@ -142,13 +142,13 @@ Bind either of the first two to a key in `~/.config/herdr/config.toml`:
 [[keys.command]]
 key = "prefix+a"
 type = "plugin_action"
-command = "herdr-topbar.open-panel"
+command = "herdr-osx-menubar.open-panel"
 description = "show the agents panel"
 
 [[keys.command]]
 key = "prefix+o"
 type = "plugin_action"
-command = "herdr-topbar.open-picker"
+command = "herdr-osx-menubar.open-picker"
 description = "open a folder in herdr"
 ```
 

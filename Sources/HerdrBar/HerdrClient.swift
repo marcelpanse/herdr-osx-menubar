@@ -140,7 +140,7 @@ enum HerdrClient {
 
     private static func call(_ method: String, _ params: [String: Any] = [:],
                              timeout: TimeInterval = 3) -> [String: Any]? {
-        let body: [String: Any] = ["id": "herdr-topbar", "method": method, "params": params]
+        let body: [String: Any] = ["id": "herdr-osx-menubar", "method": method, "params": params]
         guard let reply = UnixSocket.request(path: Paths.herdrSocket, json: body, timeout: timeout)
         else { return nil }
         if reply["error"] != nil { return nil }

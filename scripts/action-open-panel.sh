@@ -6,7 +6,7 @@
 #   [[keys.command]]
 #   key = "prefix+a"
 #   type = "plugin_action"
-#   command = "herdr-topbar.open-panel"
+#   command = "herdr-osx-menubar.open-panel"
 set -euo pipefail
 APP="${HERDR_TOPBAR_APP:-$HOME/Applications/HerdrBar.app}"
 HELPER="$APP/Contents/MacOS/herdrbar-open"

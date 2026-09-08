@@ -5,7 +5,7 @@
 #   [[keys.command]]
 #   key = "prefix+o"
 #   type = "plugin_action"
-#   command = "herdr-topbar.open-picker"
+#   command = "herdr-osx-menubar.open-picker"
 set -euo pipefail
 APP="${HERDR_TOPBAR_APP:-$HOME/Applications/HerdrBar.app}"
 HELPER="$APP/Contents/MacOS/herdrbar-open"

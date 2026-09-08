@@ -1,4 +1,4 @@
-# herdr-topbar — a macOS menu bar companion for herdr.
+# herdr-osx-menubar — a macOS menu bar companion for herdr.
 #
 # herdr's plugin system runs processes; it cannot draw a menu bar item itself.
 # So this plugin builds and manages a small AppKit app (HerdrBar.app) that owns
@@ -6,13 +6,18 @@
 #
 # On notifications: herdr already delivers its own ([ui.toast], [ui.sound]).
 # This plugin posts no notifications and changes no notification settings — the
-# `pane.agent_status_changed` hook below only drives the icon's attention flash,
-# so an agent waiting for input is noticeable from anywhere on screen.
+# `pane.agent_status_changed` hook below only drives the icon's badge and its
+# attention flash, so an agent waiting for input is noticeable from anywhere on
+# screen.
 
-id = "herdr-topbar"
-name = "herdr-topbar"
-version = "0.1.0"
-min_herdr_version = "0.8.0"
+id = "herdr-osx-menubar"
+name = "herdr-osx-menubar"
+version = "0.2.0"
+# The panel reads `session.snapshot`'s `agents` array (including
+# `terminal_title_stripped` and `focused_workspace_id`) and focuses rows with
+# `agent.focus`. All of that is verified against 0.8.2; earlier 0.8.x releases
+# are untested, so that is the floor claimed here.
+min_herdr_version = "0.8.2"
 description = "macOS menu bar icon for herdr: see every agent and its status at a glance, and click one to focus it."
 platforms = ["macos"]
 
