@@ -22,7 +22,7 @@ it, and every agent with what it is working on and how it is doing.
 │   ●  herdr-osx-menubar  1 working  1 agent │
 │      ~/Documents/Sources/herdr-osx-menubar │
 │      ●  Herdr plugin changes       working │
-│   ●  quietjar.com                 no agents │
+│   ●  quietjar.com                no agents │
 └────────────────────────────────────────────┘
 ```
 
