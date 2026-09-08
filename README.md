@@ -13,16 +13,17 @@ it, and every agent with what it is working on and how it is doing.
 
 ```
 ┌────────────────────────────────────────────┐
-│  herdr (5 workspaces, 3 agents)            │
+│  herdr (3 workspaces, 3 agents)            │
 │  ────────────────────────────────────────  │
+│   ●  quietjar.com                no agents │
+│      ~/Documents/Sources/quietjar.com      │
 │   ●  unless.com          2 ready  2 agents │
 │      ~/Documents/Sources/unless.com        │
+│      ●  Claude Code                  ready │
 │      ●  claude attach 08961447       ready │
-│      ●  npm run dev                  ready │
 │   ●  herdr-osx-menubar  1 working  1 agent │
 │      ~/Documents/Sources/herdr-osx-menubar │
 │      ●  Herdr plugin changes       working │
-│   ●  quietjar.com                no agents │
 └────────────────────────────────────────────┘
 ```
 
@@ -35,6 +36,9 @@ it, and every agent with what it is working on and how it is doing.
   its row inside herdr does, and brings the terminal forward.
 - Workspaces with no agents stay listed, dimmed, so a project you have open but
   forgotten about is still visible.
+- Blocks follow herdr's own workspace order, the same as its sidebar — so an
+  empty workspace can sit above a busy one. Agents *within* a block are sorted
+  loudest first, so what needs attention is never below the fold.
 
 Statuses, in the order that matters when a workspace has to be summed up in one
 word — waiting beats finished beats busy:
@@ -123,24 +127,12 @@ yourself after changing any Swift source, then `scripts/restart-bar.sh`.
 closed. The plugin's `[[startup]]` hook only fires when a herdr server starts,
 which cannot cover the "herdr is closed, click the icon to start it" case.
 
-If **Services → Open with herdr** does not appear, enable it under
-**System Settings → Keyboard → Keyboard Shortcuts… → Services**, then relaunch
-Finder (`killall Finder`).
-
-Note that a `.workflow` in `~/Library/Services` lands in Finder's **Services**
-submenu, *not* under **Quick Actions** — macOS reserves that menu for app
-extensions and Shortcuts. Both run the same command; only the submenu differs.
-If you specifically want it under Quick Actions, create a shortcut in
-Shortcuts.app that starts with "Receive files and folders from Quick Actions"
-and runs `~/Applications/HerdrBar.app/Contents/MacOS/herdrbar-open "$@"`.
-
 ## Plugin actions
 
 | Action | What it does |
 |---|---|
 | `open-panel` | Show the agents panel |
 | `open-picker` | Show the folder picker |
-| `install-finder-integration` | Install the Services entry and Open With handler |
 | `install-login-item` | Install the start-at-login LaunchAgent |
 | `restart-bar` | Restart the menu bar app after a rebuild |
 
@@ -202,7 +194,7 @@ so switching terminals needs no configuration.
 you       ──left click──▶  HerdrBar ──JSON/unix────▶ herdr.sock  (session.snapshot)
 panel row ──click───────▶  HerdrBar ──JSON/unix────▶ herdr.sock  (agent.focus)
                                     ──process tree──▶ Terminal.activate()
-Finder    ──right click─▶  herdrbar-open ──────────▶ HerdrBar
+CLI       ──herdrbar-open▶  HerdrBar ──JSON/unix────▶ herdr.sock  (workspace.create)
 herdr     ──[[events]]──▶  forward-event.sh ───────▶ HerdrBar  (badge, blink)
 ```
 

@@ -13,7 +13,7 @@ id = "herdr-topbar"
 name = "herdr-topbar"
 version = "0.1.0"
 min_herdr_version = "0.8.0"
-description = "macOS menu bar icon for herdr: jump back to your session, open a project, and see which agent is waiting for input."
+description = "macOS menu bar icon for herdr: see every agent and its status at a glance, and click one to focus it."
 platforms = ["macos"]
 
 # Compiles the Swift app and installs it to ~/Applications/HerdrBar.app.
@@ -45,12 +45,6 @@ id = "open-picker"
 title = "Open a folder in herdr"
 description = "Show HerdrBar's folder picker and open the chosen folder as a workspace."
 command = ["bash", "scripts/action-open-picker.sh"]
-
-[[actions]]
-id = "install-finder-integration"
-title = "Install Finder integration"
-description = "Add the 'Open with herdr' Quick Action and the Open With entry for files and folders."
-command = ["bash", "scripts/install-finder.sh"]
 
 [[actions]]
 id = "install-login-item"

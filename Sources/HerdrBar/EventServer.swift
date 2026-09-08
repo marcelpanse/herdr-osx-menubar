@@ -1,8 +1,8 @@
 import Foundation
 
 /// Listens on HerdrBar's own unix socket for messages pushed in from outside
-/// the app: forwarded herdr hook events, and open-project requests from Finder
-/// or the `herdrbar-open` CLI.
+/// the app: forwarded herdr hook events, and open-project requests from the
+/// `herdrbar-open` CLI.
 ///
 /// Runs its accept loop on a dedicated thread and hands every decoded message
 /// to the main queue, since all consumers touch AppKit state.

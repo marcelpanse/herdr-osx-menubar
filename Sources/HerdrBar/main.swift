@@ -125,13 +125,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         events.stop()
     }
 
-    /// Finder's "Open With → HerdrBar" arrives here.
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.isFileURL {
-            ProjectOpener.open(path: url.path, config: config)
-        }
-    }
-
     // MARK: - Icon interaction
 
     @objc private func iconClicked() {

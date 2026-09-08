@@ -5,7 +5,6 @@ import Foundation
 /// Two modes:
 ///
 ///   herdrbar-open <path>...   Open paths in herdr. Starts HerdrBar if needed.
-///                             Used by the Finder Quick Action.
 ///
 ///   herdrbar-open --picker    Ask HerdrBar to show its folder picker.
 ///

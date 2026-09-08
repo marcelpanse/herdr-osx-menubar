@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// The single path every "open this project in herdr" entry point funnels
-/// through — the folder picker, a recents row, Finder, and the CLI.
+/// through — the folder picker and the `herdrbar-open` CLI.
 enum ProjectOpener {
 
     /// Resolve `path` to a directory (a file opens its parent), then hand it to

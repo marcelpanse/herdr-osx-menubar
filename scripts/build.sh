@@ -79,25 +79,6 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>$MIN_MACOS</string>
     <!-- Menu bar only: no Dock tile, no application menu. -->
     <key>LSUIElement</key><true/>
-    <!-- Puts HerdrBar in Finder's "Open With" for folders and for any file.
-         Rank Alternate keeps it from ever becoming a default handler. -->
-    <key>CFBundleDocumentTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleTypeName</key><string>Folder</string>
-            <key>CFBundleTypeRole</key><string>Viewer</string>
-            <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key>
-            <array><string>public.folder</string></array>
-        </dict>
-        <dict>
-            <key>CFBundleTypeName</key><string>File</string>
-            <key>CFBundleTypeRole</key><string>Viewer</string>
-            <key>LSHandlerRank</key><string>Alternate</string>
-            <key>LSItemContentTypes</key>
-            <array><string>public.item</string></array>
-        </dict>
-    </array>
 </dict>
 </plist>
 PLIST
@@ -119,10 +100,6 @@ fi
 mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
 cp -R "$STAGE" "$DEST"
-
-# Refresh LaunchServices so the Open With entry appears without a relogin.
-/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister \
-    -f "$DEST" >/dev/null 2>&1 || true
 
 if [ "$WAS_RUNNING" -eq 1 ]; then
     echo "==> Relaunching"
