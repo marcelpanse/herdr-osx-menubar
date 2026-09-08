@@ -1,21 +1,10 @@
-# herdr-topbar
+# herdr-osx-menubar
 
 A macOS menu bar companion for [herdr](https://herdr.dev).
 
 herdr lives inside the terminal. This plugin puts a small icon in the menu bar so
 you can see every agent from anywhere, jump straight to the one you want, and
 tell at a glance when one is waiting for you.
-
-```
-┌─ menu bar ────────────────────────────────────────────── ▣③ ─┐
-                                                           ▲
-                                    left click  →  agents panel
-                                    right click →  menu
-```
-
-The layout is modelled on [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr),
-which does the same job in a Linux bar — same status vocabulary, same badge
-rules, same one-block-per-workspace panel.
 
 ## What it does
 
@@ -33,7 +22,7 @@ it, and every agent with what it is working on and how it is doing.
 │   ●  herdr-osx-menubar  1 working  1 agent │
 │      ~/Documents/Sources/herdr-osx-menubar │
 │      ●  Herdr plugin changes       working │
-│   ●  quietjar                    no agents │
+│   ●  quietjar.com                 no agents │
 └────────────────────────────────────────────┘
 ```
 
@@ -102,17 +91,6 @@ overnight is not still blinking in the morning:
 
 The badge stays either way — only the movement stops.
 
-### Finder
-
-Finder gets two entries, both opening herdr in the selected folder (or, for a
-file, its parent folder):
-
-- right-click → **Services → Open with herdr** (near the bottom of the menu)
-- right-click → **Open With → HerdrBar**
-
-Install them with `scripts/install-finder.sh` or the
-`install-finder-integration` plugin action.
-
 ### About notifications
 
 herdr already delivers its own notifications (`[ui.toast]`, `[ui.sound]` in
@@ -123,19 +101,18 @@ Your herdr notification settings are left exactly as you have them.
 ## Install
 
 ```bash
-git clone https://github.com/bigbug16/herdr-topbar.git
-cd herdr-topbar
+git clone https://github.com/marcelpanse/herdr-osx-menubar.git
+cd herdr-osx-menubar
 
 herdr plugin link "$PWD"
 bash scripts/build.sh
-bash scripts/install-finder.sh
 bash scripts/install-login-item.sh
 ```
 
 Or install it straight from GitHub, which runs the build step for you:
 
 ```bash
-herdr plugin install bigbug16/herdr-topbar
+herdr plugin install marcelpanse/herdr-osx-menubar
 ```
 
 `herdr plugin install` runs `scripts/build.sh` for you, but **`herdr plugin link`
