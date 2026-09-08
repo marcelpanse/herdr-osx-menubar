@@ -1,63 +1,117 @@
 # herdr-topbar
 
-**English** · [Türkçe](README.tr.md)
-
 A macOS menu bar companion for [herdr](https://herdr.dev).
 
 herdr lives inside the terminal. This plugin puts a small icon in the menu bar so
-you can get back to it from anywhere, start it in any folder, and tell at a
-glance when an agent is waiting for you.
+you can see every agent from anywhere, jump straight to the one you want, and
+tell at a glance when one is waiting for you.
 
 ```
-┌─ menu bar ─────────────────────────────────────────────── ▣ ─┐
-                                                            ▲
-                                    left click  →  bring herdr to the front
+┌─ menu bar ────────────────────────────────────────────── ▣③ ─┐
+                                                           ▲
+                                    left click  →  agents panel
                                     right click →  menu
 ```
 
+The layout is modelled on [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr),
+which does the same job in a Linux bar — same status vocabulary, same badge
+rules, same one-block-per-workspace panel.
+
 ## What it does
 
-**Left click** brings the terminal running herdr to the front. If herdr is not
-running, it opens the menu instead so the click still gets you somewhere.
+**Left click** opens the **agents panel**: every workspace, the projects inside
+it, and every agent with what it is working on and how it is doing.
 
-**Right click** opens the menu:
+```
+┌────────────────────────────────────────────┐
+│  herdr (5 workspaces, 3 agents)            │
+│  ────────────────────────────────────────  │
+│   ●  unless.com          2 ready  2 agents │
+│      ~/Documents/Sources/unless.com        │
+│      ●  claude attach 08961447       ready │
+│      ●  npm run dev                  ready │
+│   ●  herdr-osx-menubar  1 working  1 agent │
+│      ~/Documents/Sources/herdr-osx-menubar │
+│      ●  Herdr plugin changes       working │
+│   ●  quietjar                    no agents │
+└────────────────────────────────────────────┘
+```
 
-- **Start herdr** / **Bring herdr to Front**
-- **Waiting for Input** — which agent is waiting, and in which project. Click a
-  row to jump straight to that workspace.
-- **Open Folder…** — pick a folder; it opens as a herdr workspace.
-- **Recent Projects** — the last 10 projects, including ones you opened from
-  inside herdr.
-- **Settings** — blink duration, start at login, install Finder integration.
+- **Workspace header** — its label, bold when herdr is currently showing it, and
+  a summary on the right: how many agents share the loudest status, then the
+  total. Clicking it focuses that workspace.
+- **The dim line** beneath is the projects the workspace's agents are working in.
+- **Agent lines** carry the pane's terminal title — what the agent is actually
+  doing — and its status. Clicking one focuses that agent, exactly as selecting
+  its row inside herdr does, and brings the terminal forward.
+- Workspaces with no agents stay listed, dimmed, so a project you have open but
+  forgotten about is still visible.
 
-**At rest the icon is always the dark ram**, in either system appearance. It is
-deliberately not an AppKit template image: a template gets re-tinted for contrast
-and would flip to white on a dark menu bar, and the point here is that the
-resting look never changes — the blink is the only thing that moves.
+Statuses, in the order that matters when a workspace has to be summed up in one
+word — waiting beats finished beats busy:
 
-**An agent waiting for input** makes the icon swap to the light ram and back,
-three times a second. It stops as soon as herdr comes to the front — by this
-icon, by Cmd-Tab, or by clicking the window — and leaves a small dot while the
-agent is still waiting. A *different* agent blocking later starts the blink
-again.
+| Panel | herdr | Meaning |
+|---|---|---|
+| **needs you** | `blocked` | The agent is waiting on an answer |
+| **done** | `done` | Finished work you have not looked at yet |
+| working | `working` | Busy |
+| ready | `idle` | Ready for input, nothing to report |
 
-It also stops on its own after **Settings → Blink Duration**, so an agent left
-waiting overnight is not still blinking in the morning:
+The panel re-reads herdr every three seconds while it is open, so a status that
+changes under you is reflected without closing it. Escape or a click anywhere
+outside dismisses it. Opening it never steals focus from your terminal.
+
+**Right click** opens a short menu — the panel is where herdr's state lives, so
+this holds only what the panel cannot:
+
+- **Start herdr** — only when nothing is attached, since with herdr up the panel
+  is the way in
+- **Waiting for Input** — which agent is waiting, and in which project
+- **Blink Duration**, **Start at Login**
+- **Quit HerdrBar**
+
+### The icon and its badge
+
+**At rest the icon is an AppKit template image**, so it behaves like every other
+icon in the menu bar: white on a dark bar, black on a light one, inverted while
+its menu is open, and correct under Increase Contrast.
+
+**A count badge** sits beside it whenever herdr has agents that are not merely
+idle — the number of agents, in the colour of the loudest one: red for
+`needs you`, green for `done`, amber for `working`. When everything is idle there
+is nothing to say, so the badge disappears.
+
+It is drawn as an overlay next to the ram rather than baked into the icon,
+because a template image is painted in a single tint and a badge inside it would
+come out monochrome.
+
+**An agent waiting for input** makes the icon swap to the badge's colour and back,
+three times a second. It stops as soon as herdr comes to the front — by a panel
+row, by Cmd-Tab, or by clicking the window — and leaves the badge while the agent
+is still waiting. A *different* agent blocking later starts the blink again.
+
+It also stops on its own after **Blink Duration**, so an agent left waiting
+overnight is not still blinking in the morning:
 
 | Choice | Behaviour |
 |---|---|
-| 1 minute | Blink for a minute, then show the static dot |
+| 1 minute | Blink for a minute, then hold the badge |
 | **3 minutes** | Default |
 | 10 minutes | For longer unattended runs |
 | Until clicked | Never stops on its own |
 
-The dot stays either way — only the movement stops.
+The badge stays either way — only the movement stops.
 
-**Finder** gets two entries, both opening herdr in the selected folder (or, for a
+### Finder
+
+Finder gets two entries, both opening herdr in the selected folder (or, for a
 file, its parent folder):
 
 - right-click → **Services → Open with herdr** (near the bottom of the menu)
 - right-click → **Open With → HerdrBar**
+
+Install them with `scripts/install-finder.sh` or the
+`install-finder-integration` plugin action.
 
 ### About notifications
 
@@ -107,14 +161,21 @@ and runs `~/Applications/HerdrBar.app/Contents/MacOS/herdrbar-open "$@"`.
 
 | Action | What it does |
 |---|---|
+| `open-panel` | Show the agents panel |
 | `open-picker` | Show the folder picker |
 | `install-finder-integration` | Install the Services entry and Open With handler |
 | `install-login-item` | Install the start-at-login LaunchAgent |
 | `restart-bar` | Restart the menu bar app after a rebuild |
 
-Bind the picker to a key in `~/.config/herdr/config.toml`:
+Bind either of the first two to a key in `~/.config/herdr/config.toml`:
 
 ```toml
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "herdr-topbar.open-panel"
+description = "show the agents panel"
+
 [[keys.command]]
 key = "prefix+o"
 type = "plugin_action"
@@ -122,7 +183,7 @@ command = "herdr-topbar.open-picker"
 description = "open a folder in herdr"
 ```
 
-## The icon
+## The icon artwork
 
 The menu bar glyph is herdr's own ram, from
 [`herdr.dev/assets/ram.svg`](https://herdr.dev/assets/ram.svg). The source SVG is
@@ -161,13 +222,14 @@ so switching terminals needs no configuration.
 ## How it works
 
 ```
-you       ──left click──▶  HerdrBar ──process tree──▶ Terminal.activate()
-you       ──right click─▶  HerdrBar ──JSON/unix────▶ herdr.sock
+you       ──left click──▶  HerdrBar ──JSON/unix────▶ herdr.sock  (session.snapshot)
+panel row ──click───────▶  HerdrBar ──JSON/unix────▶ herdr.sock  (agent.focus)
+                                    ──process tree──▶ Terminal.activate()
 Finder    ──right click─▶  herdrbar-open ──────────▶ HerdrBar
-herdr     ──[[events]]──▶  forward-event.sh ───────▶ HerdrBar  (icon blink)
+herdr     ──[[events]]──▶  forward-event.sh ───────▶ HerdrBar  (badge, blink)
 ```
 
-Two design notes worth knowing:
+Four design notes worth knowing:
 
 **Fronting the terminal uses no permissions.** Driving Terminal with AppleScript
 would trigger a TCC automation prompt that can later be revoked, silently
@@ -175,12 +237,28 @@ breaking the icon's main job. Instead HerdrBar finds the `herdr` client process,
 walks its parent chain to the GUI app that owns it, and calls
 `NSRunningApplication.activate()`. No prompt, and it works with any terminal.
 
+**The panel is one `session.snapshot` call.** Its `agents` array already carries
+everything a row needs — `pane_id`, `workspace_id`, `tab_id`, `agent`,
+`agent_status`, `terminal_title_stripped` and `focused` — so the panel keeps no
+state of its own and cannot drift from what herdr believes. Selecting an agent is
+`agent.focus` with its `pane_id`; that is the only target form herdr resolves (a
+workspace label or a bare `claude` both come back `agent_not_found`), and it
+falls back to `workspace.focus` if the agent exited between the snapshot and the
+click.
+
+**The panel is an `NSPanel`, not an `NSPopover`.** A popover insists on drawing
+its own material and arrow around whatever it contains, which cannot produce a
+flat dark surface with its own border. The panel is borderless and
+non-activating, so it takes clicks and Escape without pulling HerdrBar forward.
+
 **Waiting agents come from a plugin hook, not a socket subscription.**
 `pane.agent_status_changed` requires a concrete `pane_id` under
 `events.subscribe`, so there is no global form — but herdr's plugin hook
 allowlist accepts it, which makes `[[events]]` the way to watch every pane at
-once. Full state is re-derived from `session.snapshot` whenever the menu opens,
-so nothing goes stale if the app was not running when an event fired.
+once. Hook events only report blocked panes, though, while the badge also shows
+`working` and `done` — so the app re-reads `session.snapshot` on a slow beat
+(every twenty seconds, and coalesced after each event), and nothing goes stale if
+the app was not running when an event fired.
 
 ## Troubleshooting
 
@@ -188,8 +266,11 @@ so nothing goes stale if the app was not running when an event fired.
 # What can the app see?
 ~/Applications/HerdrBar.app/Contents/MacOS/HerdrBar --diagnose
 
-# Live state as JSON
+# Live state as JSON — including exactly the agents the panel would show
 ~/Applications/HerdrBar.app/Contents/MacOS/herdrbar-open --status
+
+# Open the agents panel without clicking the icon
+~/Applications/HerdrBar.app/Contents/MacOS/herdrbar-open --panel
 
 # Did the hooks fire?
 herdr plugin log list
@@ -212,9 +293,10 @@ flat hand-made payload tests a shape herdr never sends. Note also that
 `--status` instead.
 
 `--diagnose` prints the resolved herdr binary, whether the server is up, which
-terminal is hosting it, the open workspaces, and any waiting agents. If
-"host terminal: none" shows up while herdr is clearly running, herdr is running
-without an attached client — start one and it will resolve.
+terminal is hosting it, the open workspaces, the agents (with `▸` on the focused
+one), and any waiting agents. If "host terminal: none" shows up while herdr is
+clearly running, herdr is running without an attached client — start one and it
+will resolve.
 
 ## Requirements
 

@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusItem: NSStatusItem!
     private var icon: IconController!
+    private let panel = AgentsPanel()
     private let events = EventServer()
     private let agents = AgentWatch()
     private var config = Config.load()
@@ -43,20 +44,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         Paths.ensureSupportDir()
         config.save()
-        Recents.seedIfEmpty()
 
+        // IconController owns the length from here on: it grows the item when
+        // the count badge needs the room.
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = StatusIcon.normal()
             button.target = self
             button.action = #selector(iconClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "herdr"
         }
-        icon = IconController(button: statusItem.button)
+        icon = IconController(statusItem: statusItem)
 
         events.onEvent = { [weak self] name, data in
-            self?.agents.apply(event: name, data: data)
+            guard let self else { return }
+            self.agents.apply(event: name, data: data)
+            // AgentWatch only tracks blocked panes, but the badge and the panel
+            // also show working and done — so re-read herdr, coalesced in case
+            // a burst of transitions arrives at once.
+            self.scheduleSnapshotRefresh()
         }
         events.onOpen = { [weak self] path in
             guard let self else { return }
@@ -66,8 +72,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self else { return }
             ProjectOpener.chooseFolder(config: self.config)
         }
+        events.onPanel = { [weak self] in
+            guard let self, let button = self.statusItem.button else { return }
+            // Asked for explicitly, so open it rather than toggling: a
+            // keybinding pressed twice should leave the panel open.
+            if !self.panel.isShown { self.panel.show(relativeTo: button) }
+            self.acknowledgeWaiting()
+        }
         events.statusProvider = { [weak self] in self?.statusPayload() ?? [:] }
-        agents.onChange = { [weak self] in self?.refreshIcon() }
+        agents.onChange = { [weak self] in
+            self?.refreshIcon()
+            // An event that changes an agent's status changes what the panel
+            // shows, if it happens to be open.
+            self?.panel.refreshIfShown()
+        }
+
+        // The panel re-reads herdr each time it asks, so it stays live while
+        // open — and the refresh keeps the icon in step for free.
+        panel.snapshotProvider = { [weak self] in
+            guard let self else { return nil }
+            self.refreshState()
+            return self.snapshot
+        }
+        panel.onSelectAgent = { [weak self] agent in
+            guard let self else { return }
+            ProjectOpener.focusAgent(paneId: agent.paneId, workspaceId: agent.workspaceId,
+                                     config: self.config)
+            self.acknowledgeWaiting()
+        }
+        panel.onSelectWorkspace = { [weak self] group in
+            guard let self else { return }
+            ProjectOpener.focusWorkspace(group.workspaceId, config: self.config)
+            self.acknowledgeWaiting()
+        }
+        panel.onStartHerdr = { [weak self] in
+            guard let self else { return }
+            TerminalHost.launchHerdr(cwd: nil, config: self.config)
+            TerminalHost.invalidateHostCache()
+        }
 
         // Bringing herdr forward by any route — this icon, Cmd-Tab, clicking
         // the window — counts as having seen what is waiting.
@@ -76,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
         refreshState()
+        startBackgroundRefresh()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -96,11 +139,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             $0.type == .rightMouseUp || $0.modifierFlags.contains(.control)
         } ?? false
 
-        // Left click's job is to get back to herdr, so take the fast path: a
-        // cached process-tree lookup, no socket round-trip. With nothing to go
-        // back to, fall through to the menu so the click still does something.
-        if !isRightClick && TerminalHost.hasVisibleClient() {
-            TerminalHost.bringToFront()
+        // Left click opens the agents panel: which agents are running, in which
+        // project, and what each is doing — with a click on a row focusing that
+        // agent in herdr. Reading the panel counts as having seen what is
+        // waiting, so the blink stops here too.
+        if !isRightClick, let button = statusItem.button {
+            panel.toggle(relativeTo: button)
             acknowledgeWaiting()
             return
         }
@@ -112,9 +156,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showMenu() {
         let menu = MenuBuilder.build(
             waiting: agents.sorted,
-            recents: Recents.load(),
-            snapshot: snapshot,
-            serverRunning: serverRunning,
             hasClient: TerminalHost.hasVisibleClient(),
             blinkTimeout: config.blinkTimeoutSeconds,
             actions: menuActions())
@@ -134,27 +175,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 TerminalHost.launchHerdr(cwd: nil, config: self.config)
                 TerminalHost.invalidateHostCache()
             },
-            bringToFront: { [weak self] in
-                TerminalHost.bringToFront()
-                self?.acknowledgeWaiting()
-            },
-            focusWorkspace: { [weak self] workspaceId in
+            focusAgent: { [weak self] paneId, workspaceId in
                 guard let self else { return }
-                ProjectOpener.focus(workspaceId: workspaceId, config: self.config)
+                ProjectOpener.focusAgent(paneId: paneId, workspaceId: workspaceId,
+                                         config: self.config)
                 self.acknowledgeWaiting()
             },
-            openFolder: { [weak self] in
-                guard let self else { return }
-                ProjectOpener.chooseFolder(config: self.config)
-            },
-            openRecent: { [weak self] path in
-                guard let self else { return }
-                ProjectOpener.open(path: path, config: self.config)
-            },
-            removeRecent: { Recents.remove($0) },
-            clearRecents: { Recents.clear() },
             toggleLoginItem: { LoginItem.toggle() },
-            installFinderIntegration: { [weak self] in self?.installFinderIntegration() },
             setBlinkTimeout: { [weak self] seconds in
                 guard let self else { return }
                 self.config.blinkTimeoutSeconds = seconds
@@ -175,8 +202,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         snapshot = HerdrClient.snapshot(timeout: 0.6)
         serverRunning = snapshot != nil
         agents.reconcile(with: snapshot)
-        Recents.merge(snapshot: snapshot)
         refreshIcon()
+        panel.refreshIfShown()
+    }
+
+    /// herdr's status events cover blocked agents well, but not every state the
+    /// badge shows, and an event can be missed while the app is not running —
+    /// so re-read the whole picture on a slow beat. Twenty seconds is the
+    /// reference plugin's closed-panel cadence.
+    private static let backgroundRefreshInterval: TimeInterval = 20
+    private var backgroundRefresh: Timer?
+    private var pendingRefresh: Timer?
+
+    private func startBackgroundRefresh() {
+        let timer = Timer(timeInterval: Self.backgroundRefreshInterval,
+                          repeats: true) { [weak self] _ in
+            self?.refreshState()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        backgroundRefresh = timer
+    }
+
+    /// Coalesce a burst of hook events into one snapshot read.
+    private func scheduleSnapshotRefresh() {
+        pendingRefresh?.invalidate()
+        let timer = Timer(timeInterval: 0.4, repeats: false) { [weak self] _ in
+            self?.refreshState()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pendingRefresh = timer
     }
 
     private func refreshIcon() {
@@ -194,12 +248,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let flashing = !waiting.isEmpty && !waiting.isSubset(of: acknowledged)
 
+        // The badge counts every agent and takes the colour of the loudest
+        // one; it disappears when they are all merely ready.
+        let badge = snapshot?.badgeState().map { IconBadge(count: $0.count, state: $0.state) }
+
         if waiting.isEmpty {
-            icon.set(.idle)
+            icon.set(.idle, badge: badge)
         } else if flashing {
-            icon.set(.flashing)
+            icon.set(.flashing, badge: badge)
         } else {
-            icon.set(.acknowledged)
+            icon.set(.acknowledged, badge: badge)
         }
 
         // Arm the deadline on the transition into blinking, not on every
@@ -237,6 +295,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "blinkTimeoutSeconds": config.blinkTimeoutSeconds,
             "hostTerminal": host?.bundleIdentifier ?? "",
             "hostPid": host?.processIdentifier ?? 0,
+            // The panel's rows, so `--status` explains what it would show.
+            "agents": (snapshot?.agentRows() ?? []).map {
+                [
+                    "paneId": $0.paneId,
+                    "workspaceId": $0.workspaceId,
+                    "project": $0.project,
+                    "tab": $0.tab ?? "",
+                    "agent": $0.agent,
+                    "status": $0.status,
+                    "focused": $0.focused,
+                ]
+            },
             "waiting": agents.sorted.map {
                 [
                     "agent": $0.agent,
@@ -288,55 +358,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // resubmissions of the menu stay in one place.
     }
 
-    // MARK: - Finder integration
-
-    private func installFinderIntegration() {
-        guard let script = Bundle.main.path(forResource: "install-finder", ofType: "sh") else {
-            presentAlert(title: "Finder integration script missing",
-                         body: "install-finder.sh was not found inside the app bundle. "
-                             + "Run scripts/install-finder.sh from the plugin directory instead.")
-            return
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [script]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-        } catch {
-            presentAlert(title: "Could not run the installer", body: error.localizedDescription)
-            return
-        }
-        task.waitUntilExit()
-
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        if task.terminationStatus == 0 {
-            presentAlert(
-                title: "Finder integration installed",
-                body: "Right-click a file or folder to find “Open with herdr” under "
-                    + "Services, and HerdrBar under Open With.\n\nServices sits near the "
-                    + "bottom of the context menu — macOS reserves the Quick Actions submenu "
-                    + "for app extensions and Shortcuts.\n\nIf it does not appear, enable it "
-                    + "in System Settings → Keyboard → Keyboard Shortcuts… → Services, then "
-                    + "relaunch Finder.")
-        } else {
-            presentAlert(title: "Finder integration failed",
-                         body: output.isEmpty ? "The installer exited with an error." : output)
-        }
-    }
-
-    private func presentAlert(title: String, body: String) {
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = body
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
 }
 
 // `--diagnose` reports what the app can see, without touching the menu bar.
@@ -361,6 +382,13 @@ if CommandLine.arguments.contains("--diagnose") {
         for workspace in snapshot.workspaces {
             let path = snapshot.projectPath(for: workspace.workspaceId) ?? "-"
             print("  \(workspace.label)  \(path)")
+        }
+        let rows = snapshot.agentRows()
+        print("agents         : \(rows.count)")
+        for row in rows {
+            let tab = row.tab.map { " · \($0)" } ?? ""
+            print("  \(row.focused ? "▸" : " ") \(row.project)\(tab)  "
+                + "\(row.agent) \(row.status)  [\(row.paneId)]")
         }
         let blocked = snapshot.panes.filter { $0.agentStatus == "blocked" }
         print("waiting agents : \(blocked.count)")

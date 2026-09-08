@@ -19,8 +19,6 @@ enum ProjectOpener {
             ? path
             : (path as NSString).deletingLastPathComponent
 
-        Recents.record(directory)
-
         DispatchQueue.global(qos: .userInitiated).async {
             let serverUp = HerdrClient.isRunning()
             var created = false
@@ -49,8 +47,29 @@ enum ProjectOpener {
         }
     }
 
-    /// Focus an already-open workspace and bring its terminal forward.
-    static func focus(workspaceId: String, config: Config) {
+    /// Focus one agent and make sure it is on screen — the agents panel's row
+    /// click, and the menu's waiting rows.
+    ///
+    /// `agent.focus` is the same operation as selecting the row inside herdr.
+    /// It fails for a pane herdr no longer tracks as an agent (the agent
+    /// exited between the snapshot and the click), so fall back to focusing the
+    /// workspace, which at least lands the user in the right project.
+    static func focusAgent(paneId: String, workspaceId: String, config: Config) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let ok = HerdrClient.focusAgent(paneId: paneId)
+                || HerdrClient.focusWorkspace(workspaceId)
+            DispatchQueue.main.async {
+                if TerminalHost.hasVisibleClient() {
+                    TerminalHost.bringToFront()
+                } else if ok {
+                    TerminalHost.launchHerdr(cwd: nil, config: config)
+                }
+            }
+        }
+    }
+
+    /// Focus a workspace and show it — the agents panel's workspace headers.
+    static func focusWorkspace(_ workspaceId: String, config: Config) {
         DispatchQueue.global(qos: .userInitiated).async {
             let ok = HerdrClient.focusWorkspace(workspaceId)
             DispatchQueue.main.async {

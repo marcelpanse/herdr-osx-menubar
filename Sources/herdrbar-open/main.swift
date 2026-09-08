@@ -9,6 +9,8 @@ import Foundation
 ///
 ///   herdrbar-open --picker    Ask HerdrBar to show its folder picker.
 ///
+///   herdrbar-open --panel     Ask HerdrBar to show its agents panel.
+///
 ///   herdrbar-open --status    Print HerdrBar's current state as JSON.
 ///
 ///   herdrbar-open --event     Forward one herdr plugin hook event, read from
@@ -110,6 +112,13 @@ if arguments.first == "--status" {
     exit(0)
 }
 
+if arguments.first == "--panel" {
+    guard appIsListening() || launchApp() else {
+        fail("HerdrBar is not running and could not be started")
+    }
+    exit(UnixSocket.send(path: Paths.barSocket, json: ["kind": "panel"]) ? 0 : 1)
+}
+
 if arguments.first == "--picker" {
     guard appIsListening() || launchApp() else {
         fail("HerdrBar is not running and could not be started")
@@ -119,7 +128,8 @@ if arguments.first == "--picker" {
 
 let paths = arguments.filter { !$0.isEmpty && !$0.hasPrefix("--") }
 guard !paths.isEmpty else {
-    fail("usage: herdrbar-open <path> [path...]  |  herdrbar-open --event")
+    fail("usage: herdrbar-open <path> [path...]"
+        + "  |  herdrbar-open --panel | --picker | --status | --event")
 }
 
 guard appIsListening() || launchApp() else {

@@ -20,25 +20,21 @@ final class BlockMenuItem: NSMenuItem {
 /// Everything the menu can do, supplied by the app delegate.
 struct MenuActions {
     var startHerdr: () -> Void
-    var bringToFront: () -> Void
-    var focusWorkspace: (String) -> Void
-    var openFolder: () -> Void
-    var openRecent: (String) -> Void
-    var removeRecent: (String) -> Void
-    var clearRecents: () -> Void
+    /// (pane_id, workspace_id) of the agent to focus.
+    var focusAgent: (String, String) -> Void
     var toggleLoginItem: () -> Void
-    var installFinderIntegration: () -> Void
     var setBlinkTimeout: (Int) -> Void
     var quit: () -> Void
 }
 
+/// The right-click menu.
+///
+/// Deliberately short: the agents panel on left click is where herdr's state
+/// lives, so this holds only what the panel cannot — starting herdr when none
+/// is running, the two settings, and quitting.
 enum MenuBuilder {
 
-    /// Build the full right-click menu for the current state.
     static func build(waiting: [WaitingAgent],
-                      recents: [RecentProject],
-                      snapshot: Snapshot?,
-                      serverRunning: Bool,
                       hasClient: Bool,
                       blinkTimeout: Int,
                       actions: MenuActions) -> NSMenu {
@@ -46,22 +42,21 @@ enum MenuBuilder {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        // MARK: Front / start
-        if hasClient {
-            menu.addItem(BlockMenuItem(title: "Bring herdr to Front",
-                                       handler: actions.bringToFront))
-        } else {
+        // MARK: Start
+        // Only when there is nothing to go back to; with herdr already up, the
+        // panel and its rows are the way in.
+        if !hasClient {
             menu.addItem(BlockMenuItem(title: "Start herdr", handler: actions.startHerdr))
         }
 
         // MARK: Waiting agents
         if !waiting.isEmpty {
-            menu.addItem(.separator())
+            addSeparatorIfNeeded(menu)
             menu.addItem(header("Waiting for Input"))
 
             for agent in waiting {
                 let item = BlockMenuItem(title: agent.menuTitle) {
-                    actions.focusWorkspace(agent.workspaceId)
+                    actions.focusAgent(agent.paneId, agent.workspaceId)
                 }
                 if let label = agent.workspaceLabel, !label.isEmpty {
                     // Project name as a dimmed trailing line, so a glance
@@ -73,27 +68,16 @@ enum MenuBuilder {
             }
         }
 
-        // MARK: Opening projects
-        menu.addItem(.separator())
-
-        let open = BlockMenuItem(title: "Open Folder…", keyEquivalent: "o",
-                                 handler: actions.openFolder)
-        open.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(open)
-
-        let recentsItem = NSMenuItem(title: "Recent Projects", action: nil, keyEquivalent: "")
-        recentsItem.submenu = recentsMenu(recents, actions: actions)
-        recentsItem.isEnabled = !recents.isEmpty
-        menu.addItem(recentsItem)
-
         // MARK: Settings
-        menu.addItem(.separator())
+        addSeparatorIfNeeded(menu)
 
-        let settings = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
-        settings.submenu = settingsMenu(blinkTimeout: blinkTimeout, actions: actions)
-        menu.addItem(settings)
+        let blink = NSMenuItem(title: "Blink Duration", action: nil, keyEquivalent: "")
+        blink.submenu = blinkMenu(selected: blinkTimeout, actions: actions)
+        menu.addItem(blink)
 
-        menu.addItem(header(statusLine(snapshot: snapshot, serverRunning: serverRunning)))
+        let login = BlockMenuItem(title: "Start at Login", handler: actions.toggleLoginItem)
+        login.state = LoginItem.isInstalled ? .on : .off
+        menu.addItem(login)
 
         menu.addItem(.separator())
         menu.addItem(BlockMenuItem(title: "Quit HerdrBar", keyEquivalent: "q",
@@ -102,61 +86,6 @@ enum MenuBuilder {
     }
 
     // MARK: - Sections
-
-    private static func recentsMenu(_ recents: [RecentProject],
-                                    actions: MenuActions) -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-
-        if recents.isEmpty {
-            menu.addItem(header("No recent projects"))
-            return menu
-        }
-
-        for project in recents {
-            if project.exists {
-                let item = BlockMenuItem(title: project.label) {
-                    actions.openRecent(project.path)
-                }
-                item.attributedTitle = twoPart(project.label, project.displayPath)
-                item.toolTip = project.path
-                menu.addItem(item)
-            } else {
-                // Keep it visible but obviously dead; clicking clears it.
-                let item = BlockMenuItem(title: project.label) {
-                    actions.removeRecent(project.path)
-                }
-                item.attributedTitle = twoPart(project.label, "missing — click to remove",
-                                               strikethrough: true)
-                item.toolTip = project.path
-                menu.addItem(item)
-            }
-        }
-
-        menu.addItem(.separator())
-        menu.addItem(BlockMenuItem(title: "Clear Menu", handler: actions.clearRecents))
-        return menu
-    }
-
-    private static func settingsMenu(blinkTimeout: Int, actions: MenuActions) -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-
-        // How long the icon blinks for a waiting agent before it goes quiet.
-        let blink = NSMenuItem(title: "Blink Duration", action: nil, keyEquivalent: "")
-        blink.submenu = blinkMenu(selected: blinkTimeout, actions: actions)
-        menu.addItem(blink)
-
-        menu.addItem(.separator())
-
-        let login = BlockMenuItem(title: "Start at Login", handler: actions.toggleLoginItem)
-        login.state = LoginItem.isInstalled ? .on : .off
-        menu.addItem(login)
-
-        menu.addItem(BlockMenuItem(title: "Install Finder Integration…",
-                                   handler: actions.installFinderIntegration))
-        return menu
-    }
 
     private static func blinkMenu(selected: Int, actions: MenuActions) -> NSMenu {
         let menu = NSMenu()
@@ -174,11 +103,11 @@ enum MenuBuilder {
 
     // MARK: - Presentation helpers
 
-    private static func statusLine(snapshot: Snapshot?, serverRunning: Bool) -> String {
-        guard serverRunning else { return "herdr: not running" }
-        let count = snapshot?.workspaces.count ?? 0
-        let noun = count == 1 ? "workspace" : "workspaces"
-        return "herdr: running · \(count) \(noun)"
+    /// Sections above this one are conditional, so a separator can only be
+    /// added once there is something for it to separate.
+    private static func addSeparatorIfNeeded(_ menu: NSMenu) {
+        guard menu.numberOfItems > 0 else { return }
+        menu.addItem(.separator())
     }
 
     /// A non-interactive caption row.
@@ -193,20 +122,15 @@ enum MenuBuilder {
     }
 
     /// "Primary   secondary" on one row, the secondary dimmed and smaller.
-    private static func twoPart(_ primary: String, _ secondary: String,
-                                strikethrough: Bool = false) -> NSAttributedString {
+    private static func twoPart(_ primary: String, _ secondary: String) -> NSAttributedString {
         let result = NSMutableAttributedString(string: primary, attributes: [
             .font: NSFont.menuFont(ofSize: 0),
             .foregroundColor: NSColor.labelColor,
         ])
-        var trailing: [NSAttributedString.Key: Any] = [
+        result.append(NSAttributedString(string: "   " + secondary, attributes: [
             .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
             .foregroundColor: NSColor.secondaryLabelColor,
-        ]
-        if strikethrough {
-            trailing[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-        }
-        result.append(NSAttributedString(string: "   " + secondary, attributes: trailing))
+        ]))
         return result
     }
 }

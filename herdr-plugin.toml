@@ -35,6 +35,12 @@ on = "pane.agent_status_changed"
 command = ["bash", "scripts/forward-event.sh"]
 
 [[actions]]
+id = "open-panel"
+title = "Show the agents panel"
+description = "Open HerdrBar's agents panel — every agent, its project and its status."
+command = ["bash", "scripts/action-open-panel.sh"]
+
+[[actions]]
 id = "open-picker"
 title = "Open a folder in herdr"
 description = "Show HerdrBar's folder picker and open the chosen folder as a workspace."

@@ -56,7 +56,6 @@ STAGE="$BUILD/$APP_NAME.app"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
 cp "$BUILD/$APP_NAME" "$STAGE/Contents/MacOS/$APP_NAME"
 cp "$BUILD/herdrbar-open" "$STAGE/Contents/MacOS/herdrbar-open"
-cp "$ROOT/scripts/install-finder.sh" "$STAGE/Contents/Resources/install-finder.sh"
 
 # Menu bar artwork, generated from Resources/ram.svg by scripts/make-icon.sh.
 if [ ! -f "$ROOT/Resources/ram.pdf" ]; then

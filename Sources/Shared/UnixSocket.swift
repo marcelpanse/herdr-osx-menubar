@@ -143,7 +143,6 @@ enum Paths {
         NSHomeDirectory() + "/Library/Application Support/dev.herdr.topbar"
     }
     static var barSocket: String { supportDir + "/bar.sock" }
-    static var recentsFile: String { supportDir + "/recents.json" }
     static var configFile: String { supportDir + "/config.json" }
     static var launchScript: String { supportDir + "/launch.command" }
 
@@ -151,7 +150,6 @@ enum Paths {
         if let p = ProcessInfo.processInfo.environment["HERDR_SOCKET_PATH"], !p.isEmpty { return p }
         return NSHomeDirectory() + "/.config/herdr/herdr.sock"
     }
-    static var herdrSessionFile: String { NSHomeDirectory() + "/.config/herdr/session.json" }
 
     static func ensureSupportDir() {
         try? FileManager.default.createDirectory(

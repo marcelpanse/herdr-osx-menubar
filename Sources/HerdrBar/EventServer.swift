@@ -18,6 +18,8 @@ final class EventServer {
     var onOpen: ((String) -> Void)?
     /// Show the folder picker (the `open-picker` plugin action).
     var onPicker: (() -> Void)?
+    /// Show the agents panel (the `open-panel` plugin action).
+    var onPanel: (() -> Void)?
     /// Current app state, answered synchronously to a `status` request.
     var statusProvider: (() -> [String: Any])?
 
@@ -80,6 +82,9 @@ final class EventServer {
 
         case "picker":
             DispatchQueue.main.async { [weak self] in self?.onPicker?() }
+
+        case "panel":
+            DispatchQueue.main.async { [weak self] in self?.onPanel?() }
 
         case "status":
             respondWithStatus(fd)
